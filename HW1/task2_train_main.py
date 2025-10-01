@@ -1,46 +1,21 @@
 # -*- coding: utf-8 -*-
 # file: task2_train_main.py
-import os, argparse, json, time
+import os, argparse, json
 import numpy as np
+import matplotlib.pyplot as plt
+import math
 from collections import defaultdict
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
-import torch.backends.cudnn as cudnn
+from task2_dataload import _separate_vocals_demucs_mem, _chunk_quality
 from task2_dataload import *
+from model import SCNN
 from tqdm import tqdm
-
-# =========================
-# Model: Short-Chunk CNN
-# =========================
-class SCNN(nn.Module):
-    """
-    輕量 short-chunk CNN：輸入 (B,1,M,T)
-    """
-    def __init__(self, n_classes: int):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1), nn.BatchNorm2d(32), nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2,2)),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2,2)),
-            nn.Conv2d(64, 128, kernel_size=3, padding=1), nn.BatchNorm2d(128), nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2,2)),
-            nn.Conv2d(128, 256, kernel_size=3, padding=1), nn.BatchNorm2d(256), nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1,1)),  # 全域平均
-        )
-        self.head = nn.Sequential(
-            nn.Flatten(),
-            nn.Dropout(0.3),
-            nn.Linear(256, n_classes)
-        )
-
-    def forward(self, x):
-        h = self.net(x)
-        out = self.head(h)
-        return out
+from sklearn.manifold import TSNE
+import subprocess, sys
 
 # =========================
 # Train / Eval
@@ -95,6 +70,82 @@ def eval_chunks(model, loader, device, n_classes: int):
     acc3  = topk_from_proba(labs, proba, k=3)
     return proba, labs, keys, acc1, acc3
 
+@torch.no_grad()
+def collect_logits(model, loader, device):
+    model.eval()
+    logits_all, labels_all, keys = [], [], []
+    for x, y, k in loader:
+        x = x.to(device, non_blocking=True)
+        z = model(x).detach().cpu()
+        logits_all.append(z)
+        labels_all.append(y)
+        keys.extend(k)
+    return torch.cat(logits_all, 0).numpy(), torch.cat(labels_all, 0).numpy(), keys
+
+def _pick_best_chunk(vocal_mono: np.ndarray, cfg: CFG):
+    """按照訓練相同切法＋_chunk_quality()，回傳 (best_score, s, e)。"""
+    seg_len = int(cfg.segment_sec * cfg.sr)
+    step = int(seg_len * (1.0 - cfg.overlap)) if cfg.overlap < 1.0 else 1
+    T = vocal_mono.shape[0]
+    total = max(1, math.floor((T - seg_len) / step) + 1)
+    best = (-1e9, 0, seg_len)
+    for k in range(total):
+        s = k * step; e = s + seg_len
+        seg = vocal_mono[s:e]
+        if seg.shape[0] < seg_len:
+            seg = np.pad(seg, (0, seg_len - seg.shape[0]))
+        sc, _, _, _ = _chunk_quality(seg, cfg)
+        if sc > best[0]:
+            best = (sc, s, e)
+    return best  # (score, s, e)
+
+def _save_mel_png(seg: np.ndarray, cfg: CFG, outpng: str, device: torch.device, start_sample: int = 0):
+    """用與訓練一致的 Mel/ToDB 畫圖，x 軸顯示原整段歌曲中的秒數（絕對時間），y=Hz。"""
+    comp = FeatureComputer(cfg, device)
+    x = torch.from_numpy(seg.astype(np.float32)).unsqueeze(0).to(device)
+    with torch.no_grad():
+        S = comp.to_db(comp.mel(x)).squeeze(0).cpu().numpy()  # (n_mels, T)
+
+    n_mels, n_frames = S.shape
+    # === 絕對時間軸（秒）：chunk 起點換算為秒後加上每個 frame 的位移 ===
+    start_sec = start_sample / cfg.sr
+    frame_times_sec = start_sec + np.arange(n_frames) * (cfg.hop / cfg.sr)
+
+    # 頻率軸：把 mel bin 對應到 Hz，並挑好讀的 Hz 刻度
+    mel_hz = librosa.mel_frequencies(n_mels=n_mels, fmin=cfg.fmin, fmax=cfg.fmax)
+    tick_hz_candidates = np.array([100, 200, 500, 1000, 2000, 4000, 8000])
+    tick_hz = tick_hz_candidates[(tick_hz_candidates >= cfg.fmin) & (tick_hz_candidates <= cfg.fmax)]
+    tick_pos = [int(np.argmin(np.abs(mel_hz - f))) for f in tick_hz]
+
+    # 讓對比更清楚
+    vmax = np.max(S)
+    vmin = vmax - 80.0
+
+    plt.figure(figsize=(10, 4))
+    im = plt.imshow(S, aspect='auto', origin='lower', vmin=vmin, vmax=vmax)
+    plt.colorbar(im, label='dB')
+
+    # x 軸：顯示絕對秒數（最多 ~8 個刻度）
+    max_xticks = 8
+    if n_frames <= max_xticks:
+        xtick_pos = np.arange(n_frames)
+    else:
+        xtick_pos = np.linspace(0, n_frames - 1, num=max_xticks, dtype=int)
+    xtick_lab = [f"{frame_times_sec[i]:.1f}" for i in xtick_pos]
+    plt.xticks(xtick_pos, xtick_lab)
+    plt.xlabel("Time in full track (s)")
+
+    # y 軸：用 Hz 標示
+    plt.yticks(tick_pos, [f"{int(f)}" for f in tick_hz])
+    plt.ylabel("Frequency (Hz)")
+
+    plt.title("Mel-spectrogram (best chunk)")
+    plt.tight_layout()
+    plt.savefig(outpng, dpi=160)
+    plt.close()
+
+
+
 # =========================
 # Main
 # =========================
@@ -102,26 +153,41 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--train_json", type=str, required=True)
     ap.add_argument("--val_json",   type=str, required=True)
-    ap.add_argument("--test_json",  type=str, default=None)     # 若需測試
-    ap.add_argument("--segment_sec", type=int, default=30)
+    ap.add_argument("--test_root",  type=str, default="./hw1/artist20/test",
+                    help="Folder that contains flat .wav files (no labels)")
+    ap.add_argument("--segment_sec", type=int, default=10)
     ap.add_argument("--overlap",     type=float, default=0.0)
-    ap.add_argument("--batch_size",  type=int, default=64)
+    ap.add_argument("--batch_size",  type=int, default=16)
     ap.add_argument("--epochs",      type=int, default=40)
     ap.add_argument("--lr",          type=float, default=1e-3)
-    ap.add_argument("--patience",    type=int, default=6, help="early stopping patience")
+    ap.add_argument("--patience",    type=int, default=9999, help="early stopping patience")
     ap.add_argument("--vote_method", type=str, default="mean", choices=["mean","majority"])
     ap.add_argument("--ckpt_path",   type=str, default="checkpoints/task2_scnn.pt")
     ap.add_argument("--report_dir",  type=str, default="reports_task2")
     ap.add_argument("--num_workers", type=int, default=4)
     ap.add_argument("--pin_memory", action="store_true")
+    ap.add_argument("--cache_dir", type=str, default="cache_task2")
+    ap.add_argument("--user_drive_url", type=str, default="https://drive.google.com/file/d/1igvMqkJNY4NpH1ZgV2nXPw1AtNT62fNf/view?usp=sharing",
+                help="Google Drive 分享連結；若給這個會用 gdown 下載成 user_audio.mp3")
 
     args = ap.parse_args()
 
     os.makedirs(args.report_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    user_path = os.path.join(args.report_dir, "user_audio.mp3")
+    cmd = ["gdown", "--id", "1v15RpbOiRv2GEtGawwQEP6N-oZa_9Agb", "-O", user_path]
+    res = subprocess.run(cmd, stdout=sys.stdout, stderr=sys.stderr, check=True)
     
     # ===== dataloaders =====
-    cfg = CFG(segment_sec=args.segment_sec, overlap=args.overlap, batch_size=args.batch_size)
+    cfg = CFG(
+    segment_sec=args.segment_sec,
+    overlap=args.overlap,
+    batch_size=args.batch_size,
+    num_workers=args.num_workers,
+    cache_dir=args.cache_dir,
+    )
+
     # 先從 train_json 中建立 classes
     classes = build_classes_from_json(args.train_json)
     dl_tr, dl_va, idx_tr, idx_va, _ = make_loaders(args.train_json, args.val_json, cfg, classes=classes)
@@ -129,13 +195,14 @@ def main():
     print("Val   chunks =", len(dl_va.dataset))
     n_classes = len(classes)
 
-    # ===== model / opt =====
+    # ===== model / opt ===== 
     model = SCNN(n_classes=n_classes).to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     criterion = nn.CrossEntropyLoss()
 
     # ===== train with early stopping =====
     best_acc, best_epoch, wait = 0.0, 0, 0
+    hist = {'loss':[], 'tr_acc':[], 'va1':[], 'va3':[], 't1':[], 't3':[]}
     best_state = None
     epoch_bar = tqdm(range(1, args.epochs + 1), desc="Epochs", dynamic_ncols=True)
     for epoch in epoch_bar:
@@ -159,6 +226,13 @@ def main():
             t1=f"{acc1_track:.4f}",
             t3=f"{acc3_track:.4f}",
         )
+
+        hist['loss'].append(tr_loss)
+        hist['tr_acc'].append(tr_acc)
+        hist['va1'].append(acc1_va)
+        hist['va3'].append(acc3_va)
+        hist['t1'].append(acc1_track)
+        hist['t3'].append(acc3_track)
 
         # 也印一行（避免 tqdm 捲走）
         tqdm.write(
@@ -197,6 +271,18 @@ def main():
     torch.save(best_state, args.ckpt_path)
     print(f"[CKPT] saved to {args.ckpt_path}")
 
+    def plot_curve(values, ylabel, outpng):
+        plt.figure(figsize=(6,4))
+        plt.plot(values, marker='o')
+        plt.xlabel('epoch'); plt.ylabel(ylabel)
+        plt.tight_layout(); plt.savefig(outpng, dpi=160); plt.close()
+
+    plot_curve(hist['loss'],   'train loss', os.path.join(args.report_dir, 'loss_curve.png'))
+    plot_curve(hist['tr_acc'], 'train acc',  os.path.join(args.report_dir, 'train_acc.png'))
+    plot_curve(hist['va1'],    'val top-1',  os.path.join(args.report_dir, 'val_top1.png'))
+    plot_curve(hist['t1'],     'track top-1',os.path.join(args.report_dir, 'track_top1.png'))
+
+
     # ===== 最終 validation 報告（用 best state） =====
     model.load_state_dict(best_state["model"])
     proba_va, y_va, keys_va, acc1_va, acc3_va = eval_chunks(model, dl_va, device, n_classes)
@@ -217,7 +303,6 @@ def main():
     print(classification_report(y_track, y_pred_track, target_names=classes, digits=4, zero_division=0))
 
     # 混淆矩陣圖片
-    import matplotlib.pyplot as plt
     def plot_cm(cm, labels, outpng):
         fig, ax = plt.subplots(figsize=(6,6))
         im = ax.imshow(cm, interpolation='nearest')
@@ -233,25 +318,84 @@ def main():
     cm_track = confusion_matrix(y_track, y_pred_track)
     plot_cm(cm_track, classes, os.path.join(args.report_dir, "cm_val_track.png"))
 
-    # ===== TEST（可選）→ 匯出 top-3 JSON（track-level） =====
-    if args.test_json:
-        idx_te = build_index(args.test_json, cfg, classes)
-        dl_te = DataLoader(ChunkDatasetFixed(idx_te, cfg), batch_size=cfg.batch_size,
-                           shuffle=False, num_workers=cfg.num_workers, pin_memory=True)
-        proba_te, labs_dummy, keys_te, _, _ = eval_chunks(model, dl_te, device, n_classes)
-        # 聚合
-        buckets = defaultdict(list)
-        for i, k in enumerate(keys_te):
-            buckets[k].append(i)
-        results: Dict[str, List[str]] = {}
-        for k, idxs in buckets.items():
-            p = proba_te[idxs].mean(axis=0)
-            top3 = np.argsort(p)[-3:][::-1]
-            results[k] = [classes[i] for i in top3]
-        out_json = os.path.join(args.report_dir, "task2_test_top3.json")
-        with open(out_json, "w", encoding="utf-8") as f:
-            json.dump(results, f, ensure_ascii=False, indent=2)
-        print(f"[TEST] wrote top-3 JSON to: {out_json}")
+    # === t-SNE on validation logits（可選併入你的錄音） ===
+    logits_va, labs_va, _ = collect_logits(model, dl_va, device)
+
+    # 子樣本（加速 t-SNE）
+    max_points = 4000
+    if logits_va.shape[0] > max_points:
+        sel = np.random.choice(logits_va.shape[0], max_points, replace=False)
+        X_val = logits_va[sel]; Y_val = labs_va[sel]
+    else:
+        X_val = logits_va; Y_val = labs_va
+
+    # ---- (可選) 把你的音檔下載/讀入 → Demucs 分離 → 挑最高分 chunk → 取 logits ----
+    user_logit = None
+    # 2) 真的有檔案才處理
+    if user_path and os.path.isfile(user_path):
+        # 用同一流程取得 vocal mono（LRU+Demucs）
+        v = _separate_vocals_demucs_mem(user_path, cfg, device)
+        sc, s, e = _pick_best_chunk(v, cfg)
+        best = v[s:e]
+        need = int(cfg.segment_sec * cfg.sr)
+        if best.shape[0] < need:
+            best = np.pad(best, (0, need - best.shape[0]))
+
+        # 畫 Mel
+        mel_png = os.path.join(args.report_dir, "user_best_mel.png")
+        _save_mel_png(best, cfg, mel_png, device, start_sample=s)
+        print(f"[user_audio] best score={sc:.3f}, time=[{s/cfg.sr:.2f}s ~ {e/cfg.sr:.2f}s] → {mel_png}")
+
+        # 跟驗證一樣的特徵 → 丟 model 取 logits（和 t-SNE 一致的空間）
+        comp = FeatureComputer(cfg, device)
+        F = comp.compute(best.astype(np.float32), apply_specaug=False)
+        x_u = torch.tensor(F, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
+        with torch.no_grad():
+            user_logit = model(x_u).detach().cpu().numpy()  # (1, n_classes)
+
+    # ---- 一起做 t-SNE（非參數式，需把 user 一起 fit）----
+    X_tsne = X_val if user_logit is None else np.vstack([X_val, user_logit])
+    perp = max(5, min(30, (X_tsne.shape[0] - 1) // 3))
+    Z = TSNE(n_components=2, init='pca', learning_rate='auto',
+            perplexity=perp, n_iter=1000, random_state=42).fit_transform(X_tsne)
+
+    if user_logit is None:
+        val_xy, user_xy = Z, None
+    else:
+        val_xy, user_xy = Z[:-1], Z[-1]
+
+    plt.figure(figsize=(7, 7))
+    sc = plt.scatter(val_xy[:, 0], val_xy[:, 1], c=Y_val, s=6, alpha=0.7, cmap="tab20")
+    plt.colorbar(sc)
+    if user_xy is not None:
+        plt.scatter(user_xy[0], user_xy[1], marker="*", s=320,
+                    edgecolors="k", linewidths=1.2, c="none", label="Your clip")
+        plt.legend(loc="best", frameon=True)
+    plt.title("t-SNE on validation logits (+ your clip ★)")
+    plt.tight_layout()
+    plt.savefig(os.path.join(args.report_dir, "tsne_val_logits.png"), dpi=160)
+    plt.close()
+
+
+    # # ===== TEST（可選）→ 匯出 top-3 JSON（track-level） =====
+    # if args.test_json:
+    #     idx_te = build_index(args.test_json, cfg, classes)
+    #     dl_te = DataLoader(ChunkDatasetFixed(idx_te, cfg), batch_size=cfg.batch_size,
+    #                        shuffle=False, num_workers=cfg.num_workers, pin_memory=True)
+    #     proba_te, labs_dummy, keys_te, _, _ = eval_chunks(model, dl_te, device, n_classes)
+    #     # 聚合
+    #     buckets = defaultdict(list)
+    #     for i, k in enumerate(keys_te):
+    #         buckets[k].append(i)
+    #     results: Dict[str, List[str]] = {}
+    #     for k, idxs in buckets.items():
+    #         p = proba_te[idxs].mean(axis=0)
+    #         top3 = np.argsort(p)[-3:][::-1]
+    #         results[k] = [classes[i] for i in top3]
+    #     out_json = os.path.join(args.report_dir, "task2_test_top3.json")
+    #     with open(out_json, "w", encoding="utf-8") as f:
+    #         json.dump(results, f, ensure_ascii=False, indent=2)
+    #     print(f"[TEST] wrote top-3 JSON to: {out_json}")
 
 if __name__ == "__main__":
     main()
