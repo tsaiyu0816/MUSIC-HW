@@ -21,6 +21,13 @@ from demucs.pretrained import get_model as demucs_get_model
 from demucs.apply import apply_model
 import multiprocessing as mp
 
+try:
+    import torch_audiomentations as TA
+    _HAS_TA = True
+except Exception:
+    _HAS_TA = False
+
+
 warnings.filterwarnings("ignore", category=UserWarning)
 # ==== 多進程初始化（共享 GPU 鎖）====
 _GPU_LOCK = None  # 全域 GPU 鎖（確保 Demucs 單線程使用 GPU）
@@ -63,10 +70,10 @@ class CFG:
     cache_dir: str = "cache_task2"
 
     # 片段挑選條件（在 vocal 上打分）
-    per_track_cap: int = 10
-    min_voiced: float = 0.30
-    min_snr_db: float = 2.0
-    max_flatness: float = 0.95
+    per_track_cap: int = 15     # Top-K
+    min_voiced: float = 0.10    # 0.20
+    min_snr_db: float = 1.0     # 2.0
+    max_flatness: float = 0.85  # 0.95
 
     # in-memory stem LRU（GB）
     stem_mem_gb: float = 4.0
@@ -102,7 +109,7 @@ def _label_from_path(path: str) -> str:
 
 def build_classes_from_json(train_json: str) -> List[str]:
     paths = _paths_from_json(train_json)
-    return sorted({_label_from_path(p) for p in paths})
+    return sorted({_label_from_path(p) for p in paths})[:]
 
 
 # =========================
@@ -197,17 +204,15 @@ def _separate_vocals_demucs_mem(src_path: str, cfg: CFG, device: torch.device) -
 
     model = _get_demucs(device)
     with torch.no_grad():
-        # IMPORTANT: keep Demucs in FP32 on CUDA to avoid cuFFT errors in torch.stft.
         if device.type == "cuda":
-            ctx = torch.cuda.amp.autocast(enabled=False)
+            ctx = torch.amp.autocast('cuda', dtype=torch.float16)
         else:
             class _NoCtx:
                 def __enter__(self): return None
                 def __exit__(self,*args): return False
             ctx = _NoCtx()
         with ctx:
-            out = apply_model(model, wav_t.float(), split=True, overlap=0.25, shifts=0, progress=False)
-
+            out = apply_model(model, wav_t, split=True, overlap=0.25, shifts=0, progress=False)
 
     voc_idx = model.sources.index("vocals")
     if isinstance(out, torch.Tensor):
@@ -285,35 +290,79 @@ def _voiced_mask_np(y: np.ndarray, cfg: CFG) -> np.ndarray:
 
 # ===== Waveform Aug（若 LRU 有該曲 stem 才做，避免臨時跑 Demucs）=====
 def _get_wave_augmenter(cfg: CFG):
-    tfms = [
-        A.PitchShift(min_semitones=-2.0, max_semitones=2.0, p=0.5),
-        A.TimeStretch(min_rate=0.95, max_rate=1.05, p=0.5),
-    ]
-    try:
-        tfms.append(A.Gain(min_gain_in_db=-6.0, max_gain_in_db=6.0, p=0.5))
-    except TypeError:
-        try:
-            tfms.append(A.Gain(min_gain_db=-6.0, max_gain_db=6.0, p=0.5))
-        except TypeError:
-            tfms.append(A.Gain(p=0.5))
-    try:
-        tfms.append(A.Shift(min_fraction=-0.2, max_fraction=0.2, rollover=True, p=0.3))
-    except TypeError:
-        try:
-            tfms.append(A.Shift(shift_min_fraction=-0.2, shift_max_fraction=0.2, rollover=True, p=0.3))
-        except TypeError:
-            try:
-                tfms.append(A.TimeShift(p=0.3))
-            except Exception:
-                pass
-    return A.Compose([t for t in tfms if t is not None])
+    
+    sr = int(cfg.sr)
 
-_WAVE_AUG = None
-def _wave_augment(seg: np.ndarray, cfg: CFG) -> np.ndarray:
-    global _WAVE_AUG
+    if _HAS_TA:
+        # ---- torch-audiomentations 版本（支援 RandomApply）----
+        tfms = [
+            TA.RandomApply([TA.PolarityInversion()], p=0.8),
+            TA.RandomApply([TA.Gain()], p=0.2),
+            TA.RandomApply([TA.AddColoredNoise(min_snr_in_db=6.0, max_snr_in_db=12.0)], p=0.3),
+            TA.RandomApply([TA.HighLowPass(sample_rate=sr)], p=0.8),
+            TA.RandomApply([TA.PitchShift(sample_rate=sr)], p=0.4),
+            TA.RandomApply([TA.Delay(sample_rate=sr)], p=0.5),
+        ]
+        # Reverb 並非每版都有，安全起見 try 一下
+        try:
+            tfms.append(TA.RandomApply([TA.Reverb(sample_rate=sr)], p=0.3))
+        except Exception:
+            pass
+
+        return ("torch", TA.Compose(transforms=tfms, p=1.0, shuffle=True))
+
+    else:
+        # ---- audiomentations 版本（用 p 近似 RandomApply）----
+        tfms = []
+        from audiomentations import (
+            PolarityInversion, AddGaussianSNR, Gain,
+            HighPassFilter, LowPassFilter, Delay, PitchShift
+        )
+
+        tfms.append(PolarityInversion(p=0.8))
+        tfms.append(AddGaussianSNR(min_snr_in_db=6.0, max_snr_in_db=12.0, p=0.3))
+        tfms.append(Gain(min_gain_in_db=-6.0, max_gain_in_db=6.0, p=0.2))
+        # 以 HighPass+LowPass 近似 HighLowPass
+        tfms.append(HighPassFilter(min_cutoff_freq=80,  max_cutoff_freq=300, p=0.4))
+        tfms.append(LowPassFilter( min_cutoff_freq=3000, max_cutoff_freq=8000, p=0.4))
+        tfms.append(Delay(min_delay=0.01, max_delay=0.07, p=0.5))
+        tfms.append(PitchShift(min_semitones=-2.0, max_semitones=2.0, p=0.4))
+        # Reverb 不是每版都有；有就加
+        try:
+            from audiomentations import Reverb
+            tfms.append(Reverb(p=0.3))
+        except Exception:
+            pass
+
+        return ("numpy", A.Compose(tfms))
+
+
+_WAVE_AUG_KIND = None
+_WAVE_AUG      = None
+
+def _ensure_wave_aug(cfg: CFG):
+    global _WAVE_AUG_KIND, _WAVE_AUG
     if _WAVE_AUG is None:
-        _WAVE_AUG = _get_wave_augmenter(cfg)
-    return _WAVE_AUG(samples=seg, sample_rate=cfg.sr).astype(np.float32)
+        _WAVE_AUG_KIND, _WAVE_AUG = _get_wave_augmenter(cfg)
+
+def _wave_augment(seg: np.ndarray, cfg: CFG) -> np.ndarray:
+    """
+    單聲道 1D numpy -> 套用波形增強 -> numpy
+    會根據可用套件自動走 torch-audiomentations（優先）或 audiomentations。
+    """
+    _ensure_wave_aug(cfg)
+    if _WAVE_AUG_KIND == "torch":
+        # torch-audiomentations 需要 [B, C, T] 的 tensor
+        x = torch.from_numpy(seg.astype(np.float32)).unsqueeze(0).unsqueeze(0)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        x = x.to(device)
+        with torch.no_grad():
+            y = _WAVE_AUG(x, sample_rate=int(cfg.sr))
+        return y.squeeze(0).squeeze(0).cpu().numpy()
+    else:
+        # audiomentations：直接 numpy
+        return _WAVE_AUG(samples=seg.astype(np.float32), sample_rate=int(cfg.sr)).astype(np.float32)
+
 
 
 # =========================
@@ -507,18 +556,21 @@ class ChunkDatasetFixed(Dataset):
         cpath = _feat_cache_path(self.cfg.cache_dir, path, s, e, self.cfg)
 
         # 90%：直接讀特徵 + SpecAug；10%：若 LRU 有該 stem 才做波形增強
-        do_wave = (self.split == "train") and (random.random() < 0.20) and _STEM_MEM.has(_stem_mem_key(path, self.cfg))
+        do_wave = (self.split == "train") and (random.random() < 0.15) and _STEM_MEM.has(_stem_mem_key(path, self.cfg))
         if do_wave:
             v = _STEM_MEM.get(_stem_mem_key(path, self.cfg))
             seg = v[s:e]
             need = e - s
-            if seg.shape[0] < need: seg = np.pad(seg, (0, need - seg.shape[0]))
+            if seg.shape[0] < need:
+                seg = np.pad(seg, (0, need - seg.shape[0]))
+            # ★ 在這裡套用你指定的增強配方（會自動選 torch/audiomentations）
             seg = _wave_augment(seg, self.cfg)
             F = self.comp.compute(seg, apply_specaug=True)
         else:
             F = np.load(cpath, allow_pickle=False).astype(np.float32)
             if self.split == "train":
                 F = _specaug_torch(F)
+
 
         x = torch.from_numpy(F).unsqueeze(0)  # (1, H, T)
         return x, torch.tensor(lab, dtype=torch.long), key

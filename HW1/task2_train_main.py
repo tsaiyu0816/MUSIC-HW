@@ -153,19 +153,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--train_json", type=str, required=True)
     ap.add_argument("--val_json",   type=str, required=True)
-    ap.add_argument("--test_root",  type=str, default="./hw1/artist20/test",
-                    help="Folder that contains flat .wav files (no labels)")
     ap.add_argument("--segment_sec", type=int, default=10)
     ap.add_argument("--overlap",     type=float, default=0.0)
     ap.add_argument("--batch_size",  type=int, default=16)
     ap.add_argument("--epochs",      type=int, default=40)
     ap.add_argument("--lr",          type=float, default=1e-3)
-    ap.add_argument("--patience",    type=int, default=9999, help="early stopping patience")
+    ap.add_argument("--patience",    type=int, default=10, help="early stopping patience")
     ap.add_argument("--vote_method", type=str, default="mean", choices=["mean","majority"])
     ap.add_argument("--ckpt_path",   type=str, default="checkpoints/task2_scnn.pt")
     ap.add_argument("--report_dir",  type=str, default="reports_task2")
     ap.add_argument("--num_workers", type=int, default=4)
-    ap.add_argument("--pin_memory", action="store_true")
     ap.add_argument("--cache_dir", type=str, default="cache_task2")
     ap.add_argument("--user_drive_url", type=str, default="https://drive.google.com/file/d/1igvMqkJNY4NpH1ZgV2nXPw1AtNT62fNf/view?usp=sharing",
                 help="Google Drive 分享連結；若給這個會用 gdown 下載成 user_audio.mp3")
@@ -196,7 +193,7 @@ def main():
     n_classes = len(classes)
 
     # ===== model / opt ===== 
-    model = SCNN(n_classes=n_classes).to(device)
+    model = SCNN(n_class=n_classes, n_mels=cfg.n_mels).to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     criterion = nn.CrossEntropyLoss()
 
@@ -253,7 +250,7 @@ def main():
             # 立刻存 checkpoint（選配）
             ckpt_dir = getattr(args, "ckpt_dir", "checkpoints")
             os.makedirs(ckpt_dir, exist_ok=True)
-            ckpt_path = os.path.join(ckpt_dir, "task2_best.pt")
+            ckpt_path = os.path.join(ckpt_dir, f"task2_best_{acc1_track:.2f}.pt")
             torch.save(best_state, ckpt_path)
             tqdm.write(f"[checkpoint] saved: {ckpt_path} (track@1={best_acc:.4f})")
         else:
@@ -375,27 +372,6 @@ def main():
     plt.tight_layout()
     plt.savefig(os.path.join(args.report_dir, "tsne_val_logits.png"), dpi=160)
     plt.close()
-
-
-    # # ===== TEST（可選）→ 匯出 top-3 JSON（track-level） =====
-    # if args.test_json:
-    #     idx_te = build_index(args.test_json, cfg, classes)
-    #     dl_te = DataLoader(ChunkDatasetFixed(idx_te, cfg), batch_size=cfg.batch_size,
-    #                        shuffle=False, num_workers=cfg.num_workers, pin_memory=True)
-    #     proba_te, labs_dummy, keys_te, _, _ = eval_chunks(model, dl_te, device, n_classes)
-    #     # 聚合
-    #     buckets = defaultdict(list)
-    #     for i, k in enumerate(keys_te):
-    #         buckets[k].append(i)
-    #     results: Dict[str, List[str]] = {}
-    #     for k, idxs in buckets.items():
-    #         p = proba_te[idxs].mean(axis=0)
-    #         top3 = np.argsort(p)[-3:][::-1]
-    #         results[k] = [classes[i] for i in top3]
-    #     out_json = os.path.join(args.report_dir, "task2_test_top3.json")
-    #     with open(out_json, "w", encoding="utf-8") as f:
-    #         json.dump(results, f, ensure_ascii=False, indent=2)
-    #     print(f"[TEST] wrote top-3 JSON to: {out_json}")
 
 if __name__ == "__main__":
     main()

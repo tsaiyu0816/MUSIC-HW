@@ -1,3 +1,16 @@
 /hw1
 /cache
+/cache_task2
+/cache_task2_infer
+/checkpoints_svm_15
 /__pycache__
+
+/*.pkl
+/*.pt
+/*.npz
+
+*reports*
+
+!checkpoints_final/task2_best_0.94.pt
+!reports_task2_final
+!reports_svm_15
