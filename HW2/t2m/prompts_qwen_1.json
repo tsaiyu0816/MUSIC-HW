@@ -1,0 +1,47 @@
+[
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/10_country_114_beat_4-4.wav",
+    "prompt": "這是一首抒情民謠曲，主旋律由吉他和手风琴演奏，节奏以四分之四拍為主，速度介於每分钟60至80拍之間，整体给人一种悠揚、抒情的感觉。",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/4_jazz_120_beat_3-4.wav",
+    "prompt": "這是一首快节奏的古典曲子，主旋律由小提琴演奏，背景由大提琴和钢琴伴奏，节奏型態為4/4拍，速度在130 BPM左右，整体情感激情且具有感染力。",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/6_rock_102_beat_3-4.wav",
+    "prompt": "這是一首抒情民谣曲風的乐曲，以吉他和钢琴为主要乐器，呈现3/4拍子，节奏轻柔，速度在60到80 BPM之间，营造了一种宁静而浪漫的氛围。 总结：这是一首令人心旷神怡的慢节奏民谣。\n\n音频2:",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/Hedwig’s theme x dizi ｜from Harry Potter ｜竹笛也能施魔法！Bamboo flute_60s.mp3",
+    "prompt": "這是一首快节奏的古典曲子，以交響樂為主體，包括弦乐、木管和铜管乐器。节奏快速，大约是120拍每分钟，整体情绪庄严而欢快。",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/Mussorgsky： Pictures at an Exhibition (Pletnev, Andsnes)_60s.mp3",
+    "prompt": "這是一首充滿活力的流行抒情曲，以女高音為主體，有強烈的節奏感和律动感，速度適中，曲調甜美，能夠帶給人正能量。整首歌曲流露出一種浪漫和幸福的情感，是人們在難過時聽的一首好歌。\n\n總結：這首歌融合了流行和抒情元素，通过明快的旋律和节奏向听众传递积极向上的情绪。",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/Spirited Away OST「Always With Me ⧸ Itsumo Nando Demo」Ru's Piano Cover [Sheet Music]_60s.mp3",
+    "prompt": "這段音乐是慢节奏的古典曲风，以弦乐和钢琴为主要乐器演奏，4/4拍子，速度大约在60到70 BPM之间，整体情绪宁静而放松。它是一首优美的经典名曲，让人感受到深邃的情感和和谐的旋律。\n\n精炼总结：这是一首舒缓的古典音乐，以钢琴和弦乐为主，营造出平静放松的氛围。",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/【楽譜あり】IRIS OUT⧸米津玄師（ピアノソロ上級）劇場版『チェンソーマン レゼ篇』主題歌【ピアノアレンジ楽譜】.mp3",
+    "prompt": "這段音樂是古典曲風，主旋律由小提琴演奏，具有4/4拍子，速度在每分鐘60到80拍之間，整体感覺溫和而抒情，給人以平靜及深沉的情感。",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/【菊花台-周杰倫（D調）】附伴奏⧸鋼琴伴奏(竹笛Bamboo flute、Roland Aerophone AE-10) 演奏：蘇俊琪(PSR-S970)audio-technica AT-2035_60s.mp3",
+    "prompt": "這是一首古典曲風的音樂，以大提琴和小提琴為主體，使用了4/4拍子，速度介於120.0到130.0之間，整体情感溫和且引人入勝。",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/竹笛｜这世界那么多人_cover 莫文蔚_60s.mp3",
+    "prompt": "這段音乐是古典曲风，主要乐器为钢琴，节奏类型为四分之四拍，速度在每分钟120拍左右，整体情绪宁静且具有沉思性质。可以总结为：这是一首表现宁静思考情绪的古典钢琴曲。",
+    "alm": "qwen"
+  }
+]

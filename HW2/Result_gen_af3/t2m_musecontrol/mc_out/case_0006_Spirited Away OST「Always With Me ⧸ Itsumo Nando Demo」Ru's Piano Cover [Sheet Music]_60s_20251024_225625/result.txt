@@ -1,0 +1,51 @@
+{
+    "config": {
+        "apadapter": true,
+        "ap_scale": 1.0,
+        "weight_dtype": "fp16",
+        "negative_text_prompt": "",
+        "denoise_step": 50,
+        "guidance_scale_text": 7.0,
+        "guidance_scale_con": 7.0,
+        "guidance_scale_audio": 3.0,
+        "no_text": false,
+        "show_result_and_plt": false,
+        "seconds": 12.0,
+        "sample_rate": 44100,
+        "seed": 42,
+        "sigma_min": 0.3,
+        "sigma_max": 500,
+        "audio_mask_start_seconds": 0,
+        "audio_mask_end_seconds": 0,
+        "musical_attribute_mask_start_seconds": 0,
+        "musical_attribute_mask_end_seconds": 0,
+        "text": [
+            "This music segment is characterized by its classical style, featuring a piano as the primary instrument. The melody is played in a slow tempo with a 4/4 time signature, creating a serene and contemplative atmosphere. The chord progression includes A# major, C minor, G# major, and D# major, adding depth and complexity to the composition. The overall mood is calm and peaceful, making it suitable for relaxation or meditation purposes."
+        ],
+        "audio_files": [
+            "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/Spirited Away OST\u300cAlways With Me \u29f8 Itsumo Nando Demo\u300dRu's Piano Cover [Sheet Music]_60s.mp3"
+        ],
+        "condition_type": [
+            "melody_mono",
+            "rhythm",
+            "dynamics"
+        ],
+        "output_dir": "/home/tsmc-tsai/music_hw/HW2/MuseControlLite/mc_out/case_0006_Spirited Away OST\u300cAlways With Me \u29f8 Itsumo Nando Demo\u300dRu's Piano Cover [Sheet Music]_60s_20251024_225625",
+        "GPU_id": "0",
+        "transformer_ckpt_melody_stero": "./checkpoints/70000_Melody_stereo/model_1.safetensors",
+        "extractor_ckpt_melody_stero": {
+            "melody": "./checkpoints/70000_Melody_stereo/model.safetensors"
+        },
+        "audio_transformer_ckpt": "./checkpoints/70000_Audio/model.safetensors",
+        "transformer_ckpt_melody_mono": "./checkpoints/40000_Melody_mono/model_1.safetensors",
+        "extractor_ckpt_melody_mono": {
+            "melody": "./checkpoints/40000_Melody_mono/model.safetensors"
+        },
+        "transformer_ckpt_musical": "./checkpoints/woSDD-all/model_3.safetensors",
+        "extractor_ckpt_musical": {
+            "dynamics": "./checkpoints/woSDD-all/model_1.safetensors",
+            "melody": "./checkpoints/woSDD-all/model.safetensors",
+            "rhythm": "./checkpoints/woSDD-all/model_2.safetensors"
+        }
+    }
+}

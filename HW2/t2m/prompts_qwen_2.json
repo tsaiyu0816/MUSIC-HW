@@ -1,0 +1,47 @@
+[
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/10_country_114_beat_4-4.wav",
+    "prompt": "{\\\"genre\\\": \\\"未知\\\", \\\"instruments\\\": [\\\"鼓\\\", \\\"吉他\\\", \\\"贝斯\\\"], \\\"rhythm\\\": \\\"4/4拍，有稳定的鼓点节奏和律动感\\\", \\\"tempo bpm_range\\\": [100, 120], \\\"mood\\\": \\\"庆祝、欢快\\\", \\\"summary\\\": \\\"这是一个充满活力和喜庆气氛的音乐片段。\\\"} 请注意，由于音频内容是中文，此回答也采用中文进行表述。如果提供的是英文音频，则该回答将翻译成英文。对于不明确的信息，我会尽可能提供详细的推测。",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/4_jazz_120_beat_3-4.wav",
+    "prompt": "{\\\"genre\\\": \\\"混合種類\\\", \\\"instruments\\\": [\\\"鼓\\\", \\\"吉他\\\", \\\"贝斯\\\"], \\\"rhythm\\\": \\\"4/4拍, 稳重有力\\\", \\\"tempo bpm_range\\\": [100, 150], \\\"mood\\\": \\\"激烈动感\\\", \\\"summary\\\": \\\"富有活力和节奏感的摇滚音乐片段。\\\"}  (輸出的JSON字串需符合上述格式)。注意：若音頻中有其他乐器声音，也可以在'instruments'字段中添加；若没有特定情绪，可以省略'mood'字段。",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/6_rock_102_beat_3-4.wav",
+    "prompt": "{\\\"genre\\\": \\\"混合種類\\\", \\\"instruments\\\": [\\\"鼓\\\", \\\"木琴\\\", \\\"高帽\\\"], \\\"rhythm\\\": \\\"四分之四拍, 活潑的律动感\\\", \\\"tempo bpm_range\\\": [100, 120], \\\"mood\\\": \\\"開朗, 轉換快\\\", \\\"summary\\\": \\\"這是一段有趣的鼓點錄音，混合了流行和爵士元素，通過木琴和高帽的活躍應用增添了輕鬆的氣氛.\\\"}  (其中 'tempo' 是通過聽覺分析估計得出的，並未直接測量)",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/Hedwig’s theme x dizi ｜from Harry Potter ｜竹笛也能施魔法！Bamboo flute_60s.mp3",
+    "prompt": "{\\\"genre\\\": \\\"可能是古典或流行\\\", \\\"instruments\\\": [\\\"主旋律可能是由長笛或單簧管演奏，伴奏有弦樂和木管乐器\\\"], \\\"rhythm\\\": \\\"4/4拍子，节奏明快\\\", \\\"tempo\\\": \\\"90-120 bpm\\\", \\\"mood\\\": \\\"輕鬆愉快\\\", \\\"summary\\\": \\\"這是一段令人振奋的古典音樂作品，长笛在其中扮演主角。\\\"} (Note: The mood can be one or more of happy, joyful, uplifting, etc.) (The summary should not exceed 50 words)",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/Mussorgsky： Pictures at an Exhibition (Pletnev, Andsnes)_60s.mp3",
+    "prompt": "{\\\"genre\\\": \\\"古典\\\", \\\"instruments\\\": [\\\"钢琴\\\", \\\"弦乐\\\"], \\\"rhythm\\\": \\\"4/4拍子，舒缓的节奏和律动\\\", \\\"tempo bpm_range\\\": [80, 120], \\\"mood\\\": \\\"梦幻般宁静和平静\\\", \\\"summary\\\": \\\"这段音乐听起来像一首经典的摇篮曲，旋律柔和，让人感到放松和平静。\\\"} 请注意，这些值是根据提供的音频内容估计得出的，并非准确标签。实际音乐可能会有所不同。对于更精确的结果，请使用专业音乐分析工具或咨询专业人士。",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/Spirited Away OST「Always With Me ⧸ Itsumo Nando Demo」Ru's Piano Cover [Sheet Music]_60s.mp3",
+    "prompt": "{\\\"genre\\\": \\\"classical\\\", \\\"instrument\\\": \\\"piano\\\", \\\"rhythm\\\": \\\"4/4, steady\\\", \\\"tempo\\\": \\\"100.0 bpm\\\", \\\"mood\\\": \\\"calm, melodic\\\", \\\"summary\\\": \\\"This classical piano piece has a serene melody with a steady rhythm, invoking feelings of calmness and tranquility.\\\"}  (Note that the mood description is subjective and can vary from listener to listener.) The summary captures the essence of the piece in one sentence. The genre, instrument, rhythm, tempo, and mood fields provide more specific details about the composition.",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/【楽譜あり】IRIS OUT⧸米津玄師（ピアノソロ上級）劇場版『チェンソーマン レゼ篇』主題歌【ピアノアレンジ楽譜】.mp3",
+    "prompt": "{\\\"genre\\\": \\\"可能是古典音樂中的某個流派或混合\\\", \\\"instruments\\\": [\\\"钢琴\\\", \\\"弦乐\\\", \\\"小提琴\\\"], \\\"rhythm\\\": \\\"4/4拍，节奏明快\\\", \\\"tempo bpm_range\\\": [120, 150], \\\"mood\\\": [ \\\"欢乐\\\", \\\"爱情\\\"],\\\"summary\\\": \\\"这首音乐听起来令人振奋和浪漫。\\\"}  (Note: genre and mood are subjective and may vary based on personal interpretation.)  (Optional: add more details if available in the audio, such as dynamic range, instrument timbre, etc.)",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/【菊花台-周杰倫（D調）】附伴奏⧸鋼琴伴奏(竹笛Bamboo flute、Roland Aerophone AE-10) 演奏：蘇俊琪(PSR-S970)audio-technica AT-2035_60s.mp3",
+    "prompt": "{\\\"genre\\\": \\\"可能是古典音樂或是電子音樂混合\\\", \\\"instruments\\\": [\\\"長笛\\\", \\\"钢琴\\\", \\\"合成器\\\"], \\\"rhythm\\\": \\\"4/4拍子，有稳定的节奏和流动性的旋律线\\\", \\\"tempo\\\": \\\"80-90 BPM\\\", \\\"mood\\\": \\\"輕鬆愉快，可能適合在咖啡店或休閒場合播放\\\", \\\"summary\\\": \\\"這是一首融合了古典元素和現代電子技術的舒緩曲目，通過流暢的旋律线和輕盈的節奏來营造出一種放鬆的氛圍.\\\"}",
+    "alm": "qwen"
+  },
+  {
+    "target": "/home/tsmc-tsai/music_hw/HW2/home/fundwotsai/Deep_MIR_hw2/target_music_list_60s/竹笛｜这世界那么多人_cover 莫文蔚_60s.mp3",
+    "prompt": "{\\\"genre\\\": \\\"可能是輕快而平和的新世紀音樂\\\", \\\"instruments\\\": [\\\"長笛\\\", \\\"竖琴\\\", \\\"合成弦乐\\\"] \\\"rhythm\\\": \\\"2/4拍子，每分钟60拍的舒缓节奏\\\", \\\"tempo\\\": \\\"60.0 bpm\\\", \\\"mood\\\": \\\"冥想, 和平\\\", \\\"summary\\\": \\\"这首音乐营造了一个平静的氛围适合冥想或放松。\\\"} 请注意，此回答仅基于音频内容，未考虑其他上下文信息。实际音乐特征可能有所不同。此外，某些乐器可能难以准确识别，因此可能需要根据音频特点进行推测。",
+    "alm": "qwen"
+  }
+]
