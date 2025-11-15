@@ -21,23 +21,26 @@ This repo supports:
 
 ---
 
-## 1) Dataset & Assets
+## 1) Data & Assets
+Download the Pop1K7 dataset and a General MIDI soundfont.
 
-Download **Pop1K7** and a General MIDI SoundFont.
+> If you already have them, place files to the shown paths and skip.
 
 ```bash
-# (A) Download Pop1K7 (example, replace <POP1K7_FILE_ID> with the course link)
-pip install -U gdown
-gdown "https://drive.google.com/uc?id=<POP1K7_FILE_ID>" -O Pop1K7.zip
-unzip -q Pop1K7.zip -d Pop1K7
+# --- folders ---
+mkdir -p Pop1K7 assets/sf2
 
-# (B) Install FluidR3 GM SoundFont (Ubuntu example)
-sudo apt-get update
-sudo apt-get install -y fluidsynth fluid-soundfont-gm
+# --- (option A) download with wget/curl: replace the URLs with your links ---
+# Pop1K7 (zip/tar or folder archive)
+POP1K7_URL="REPLACE_WITH_Pop1K7_LINK"
+[ -n "$POP1K7_URL" ] && (curl -L "$POP1K7_URL" -o pop1k7.zip || wget -O pop1k7.zip "$POP1K7_URL")
+[ -f pop1k7.zip ] && (unzip -q pop1k7.zip -d Pop1K7 || tar -xf pop1k7.zip -C Pop1K7)
 
-# Put GM.sf2 under assets/sf2
-mkdir -p assets/sf2
-cp /usr/share/sounds/sf2/FluidR3_GM.sf2 assets/sf2/GM.sf2
+# GM soundfont (.sf2)
+GM_SF2_URL="REPLACE_WITH_GM_SF2_LINK"
+[ -n "$GM_SF2_URL" ] && (curl -L "$GM_SF2_URL" -o assets/sf2/GM.sf2 || wget -O assets/sf2/GM.sf2 "$GM_SF2_URL")
+[ -f assets/sf2/GM.sf2 ] && sha256sum assets/sf2/GM.sf2 | awk '{print $1}' > assets/sf2/sf2.sha256
+
 ```
 
 Expected layout:
