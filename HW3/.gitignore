@@ -1,5 +1,7 @@
+assets/
 Pop1K7/
-prompt_song/
-tutorial/
-sample_code/Result_wochord/
-sample_code/assets/
+results_remi_plus/
+results_wchord_custom/
+results_wochord_custom/
+results/
+__pycache__/
