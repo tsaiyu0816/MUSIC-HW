@@ -27,20 +27,50 @@ Download the Pop1K7 dataset and a General MIDI soundfont.
 > If you already have them, place files to the shown paths and skip.
 
 ```bash
-# --- folders ---
-mkdir -p Pop1K7 assets/sf2
+set -euo pipefail
 
-# --- (option A) download with wget/curl: replace the URLs with your links ---
-# Pop1K7 (zip/tar or folder archive)
-POP1K7_URL="REPLACE_WITH_Pop1K7_LINK"
-[ -n "$POP1K7_URL" ] && (curl -L "$POP1K7_URL" -o pop1k7.zip || wget -O pop1k7.zip "$POP1K7_URL")
-[ -f pop1k7.zip ] && (unzip -q pop1k7.zip -d Pop1K7 || tar -xf pop1k7.zip -C Pop1K7)
+mkdir -p Pop1K7 assets/sf2 tmp_dl
+cd tmp_dl
 
-# GM soundfont (.sf2)
-GM_SF2_URL="REPLACE_WITH_GM_SF2_LINK"
-[ -n "$GM_SF2_URL" ] && (curl -L "$GM_SF2_URL" -o assets/sf2/GM.sf2 || wget -O assets/sf2/GM.sf2 "$GM_SF2_URL")
+# --- Pop1K7 dataset (Zenodo, official record) ---
+if [ ! -f Pop1K7.zip ]; then
+  echo "[get] Pop1K7.zip"
+  curl -fL "https://zenodo.org/records/13167761/files/Pop1K7.zip?download=1" -o Pop1K7.zip \
+  || wget -O Pop1K7.zip "https://zenodo.org/records/13167761/files/Pop1K7.zip?download=1"
+fi
+echo "[unzip] Pop1K7.zip -> ../Pop1K7"
+unzip -oq Pop1K7.zip -d ../Pop1K7
+
+# --- FluidR3 GM SoundFont (primary: KeyMusician S3 ZIP) ---
+if [ ! -f FluidR3_GM.zip ]; then
+  echo "[get] FluidR3_GM.zip"
+  curl -fL "https://keymusician01.s3.amazonaws.com/FluidR3_GM.zip" -o FluidR3_GM.zip \
+  || wget -O FluidR3_GM.zip "https://keymusician01.s3.amazonaws.com/FluidR3_GM.zip" || true
+fi
+
+if [ -f FluidR3_GM.zip ]; then
+  echo "[unzip] FluidR3_GM.zip"
+  unzip -oq FluidR3_GM.zip -d FluidR3_GM || true
+  SF2_PATH="$(find FluidR3_GM -type f -iname '*.sf2' -print -quit || true)"
+  if [ -n "${SF2_PATH:-}" ]; then
+    cp -f "$SF2_PATH" ../assets/sf2/GM.sf2
+  fi
+fi
+
+# --- Fallback: direct .sf2 (SourceForge) if ZIP route failed ---
+if [ ! -f ../assets/sf2/GM.sf2 ]; then
+  echo "[fallback] FluidR3_GM.sf2 direct download"
+  curl -fL "https://sourceforge.net/projects/pianobooster/files/pianobooster/1.0.0/FluidR3_GM.sf2/download" -o ../assets/sf2/GM.sf2 \
+  || wget -O ../assets/sf2/GM.sf2 "https://sourceforge.net/projects/pianobooster/files/pianobooster/1.0.0/FluidR3_GM.sf2/download"
+fi
+
+cd ..
 [ -f assets/sf2/GM.sf2 ] && sha256sum assets/sf2/GM.sf2 | awk '{print $1}' > assets/sf2/sf2.sha256
 
+echo
+echo "[ok] Dataset path : $(realpath Pop1K7)"
+echo "[ok] SoundFont    : $(realpath assets/sf2/GM.sf2)"
+echo "[ok] SF2 checksum : $(realpath assets/sf2/sf2.sha256)"
 ```
 
 Expected layout:
