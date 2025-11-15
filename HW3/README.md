@@ -127,7 +127,7 @@ python main.py \
   --tokenizer custom \
   --with_chord 1 \
   --dict_path ./results/hw3_task1_final/dictionary.pkl \
-  --midi_glob "./Pop1K7/midi_analyzed/*/*.mid" \
+  --midi_glob "./Pop1K7/Pop1K7/midi_analyzed/*/*.mid" \
   --ckp_folder ./results/hw3_task1_final/ckpt \
   --log_dir   ./results/hw3_task1_final/logs \
   --epochs 100 --batch_size 8 --lr 3e-4 \
@@ -147,7 +147,7 @@ python main.py \
   --mode train \
   --tokenizer miditok_remi_plus \
   --with_chord 1 \
-  --midi_glob "./Pop1K7/midi_analyzed/*/*.mid" \
+  --midi_glob "./Pop1K7/Pop1K7/midi_analyzed/*/*.mid" \
   --ckp_folder ./results/hw3_task1_final/ckpt \
   --log_dir   ./results/hw3_task1_final/logs \
   --epochs 100 \
