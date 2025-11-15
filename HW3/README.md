@@ -174,7 +174,7 @@ Generate **20** samples with a trained checkpoint.
 
 ```bash
 python generate.py \
-  --ckpt ./results/hw3_task1_final/ckpt/epoch_040.pkl \
+  --ckpt ./results/hw3_task1_final/ckpt/epoch_030.pkl \
   --tokenizer remi_plus --with_chord 1 \
   --out_dir ./results/hw3_task1_final/generate_20 \
   --num 20 --bars 32 --temperature 0.9 --top_k 32 \
